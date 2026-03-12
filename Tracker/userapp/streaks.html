@@ -6,6 +6,7 @@
         <link rel="stylesheet" href="static/streaks.css" />
     </head>
     <body>
+
         <div id="tracker">
             <div class="header" style="cursor: move;">
                 <span class="title">Streak Tracker</span>
@@ -13,6 +14,15 @@
                 <span id="job-badge" class="badge badge-inactive">--</span>
             </div>
             <div id="streaks-list" class="streaks-list"></div>
+            <div class="divider" style="margin: 8px 0 4px 0; background: var(--clr-divider); height: 1px;"></div>
+            <div class="footer-row row">
+                <span class="label">Last report</span>
+                <span id="last-report" class="value muted">Never</span>
+            </div>
+            <div class="footer-row row">
+                <span class="label">Status</span>
+                <span id="report-status" class="value muted">Waiting…</span>
+            </div>
             <div id="resize-handle" class="resize-handle"></div>
         </div>
 

@@ -43,10 +43,11 @@ const state = {
   name: null,
   job: null,
   streaks: {},
-  lastReportAt: null,
   pending_report: false,
   lastStatus: 'Waiting…',
   statusType: 'neutral',
+  lastReportPayload: null,
+  lastReportTime: 0,
 };
 
 // ---------------------------------------------------------------------------
@@ -55,6 +56,8 @@ const state = {
 
 // Shared interaction state for drag & resize (uses the same mousemove/mouseup)
 let listenersAttached = false;
+// Used to track last sent streaks for change detection
+let lastSentStreaks = null;
 let isDragging = false;
 let isResizing = false;
 let startX = 0;
@@ -237,8 +240,81 @@ function handleMessage(event) {
 window.addEventListener('message', handleMessage);
 
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
 // Reporting
 // ---------------------------------------------------------------------------
+
+function buildReportPayload() {
+  // Report each streak as a separate event
+  const user_id = state.user_id;
+  if (!user_id || typeof user_id !== 'number' || !Number.isInteger(user_id)) return null;
+  const now = new Date();
+  const streaks = state.streaks || {};
+  // Only report nonzero streaks
+  const events = Object.entries(streaks)
+    .filter(([name, v]) => v && v.current && Number.isInteger(v.current))
+    .map(([name, v]) => ({
+      user_id,
+      streak_name: name,
+      streak_value: v.current,
+      timestamp: now.toISOString(),
+    }));
+  return events.length > 0 ? events : null;
+}
+
+async function reportStreaks() {
+  console.debug('[StreakTracker] reportStreaks called');
+  if (!isTelemetryEnabled()) return;
+
+  const payloads = buildReportPayload();
+  if (!payloads) return;
+  // Avoid duplicate reports
+  const payloadStr = JSON.stringify(payloads);
+  if (payloadStr === state.lastReportPayload && Date.now() - state.lastReportTime < MIN_REPORT_INTERVAL) return;
+  state.lastReportPayload = payloadStr;
+  state.lastReportTime = Date.now();
+
+  for (const payload of payloads) {
+    try {
+      const res = await fetch('/api/streak', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        setStatus('Report failed', 'error');
+        console.warn('Failed to report streak:', await res.text());
+      } else {
+        setStatus('Reported', 'ok');
+      }
+    } catch (err) {
+      setStatus('Report error', 'error');
+      console.error('Error reporting streak:', err);
+    }
+  }
+}
+
+function maybeReportStreaks() {
+  console.debug('[StreakTracker] maybeReportStreaks called');
+  // Only send if streaks changed
+  const currentStreaks = JSON.stringify(state.streaks);
+  if (lastSentStreaks === currentStreaks) {
+    console.debug('[StreakTracker] Streaks unchanged, not reporting');
+    return;
+  }
+  lastSentStreaks = currentStreaks;
+  if (!isTelemetryEnabled()) {
+    console.debug('[StreakTracker] Telemetry disabled, not reporting');
+    return;
+  }
+  // Only report if enough time has passed
+  if (Date.now() - state.lastReportTime < MIN_REPORT_INTERVAL) {
+    console.debug('[StreakTracker] Rate limit, not reporting');
+    return;
+  }
+  reportStreaks();
+}
 
 // ---------------------------------------------------------------------------
 // API Response Parsing
@@ -279,15 +355,21 @@ async function fetchUserData() {
       setStatus('OK', 'ok');
       // Handle streaks
       if (data && data.data && data.data.streaks) {
-        state.streaks = {};
+        const newStreaks = {};
         for (const [key, value] of Object.entries(data.data.streaks)) {
           console.debug(`Streak ${key}: current=${value.current}, record=${value.record}`);
           if ((value.current && value.current !== 0) || (value.record && value.record !== 0)) {
             const name = key.replace(/_/g, ' ').trim();
-            state.streaks[name] = value;
+            newStreaks[name] = value;
           }
         }
-        state.lastReportAt = new Date();
+        // Only update and report if changed
+        if (JSON.stringify(state.streaks) !== JSON.stringify(newStreaks)) {
+          state.streaks = newStreaks;
+          maybeReportStreaks();
+        } else {
+          console.debug('[StreakTracker] Streaks unchanged, not updating/reporting');
+        }
       } else {
         console.debug('No streaks data found in response');
       }
@@ -315,7 +397,8 @@ function getTextBindings() {
   return {
     'player-name': state.name || '--',
     'user-id': state.user_id || '--',
-    'last-report': state.lastReportAt ? state.lastReportAt.toLocaleTimeString() : 'Never',
+    'last-report': state.lastReportTime ? new Date(state.lastReportTime).toLocaleTimeString() : 'Never',
+    'report-status': state.lastStatus || 'Waiting…',
   };
 }
 
@@ -333,7 +416,7 @@ function renderUI() {
     setText(id, value);
   }
 
-  // Status
+  // Status (footer row)
   const statusEl = document.getElementById('report-status');
   if (statusEl) {
     statusEl.textContent = state.lastStatus;
