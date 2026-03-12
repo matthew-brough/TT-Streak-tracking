@@ -409,6 +409,21 @@ function setTelemetryEnabled(enabled) {
   }
 }
 
+function getRefreshInterval() {
+  try {
+    const val = parseInt(localStorage.getItem('StreakTracker_refresh_min'), 10);
+    return val > 0 ? val : 5;
+  } catch {
+    return 5;
+  }
+}
+
+function setRefreshInterval(minutes) {
+  const val = Math.max(1, Math.round(minutes));
+  localStorage.setItem('StreakTracker_refresh_min', val);
+  restartFetchInterval();
+}
+
 function showPrivateKeyStatus(msg, isError = false) {
   const status = document.getElementById('private-key-status');
   if (status) {
@@ -424,9 +439,11 @@ function openSettingsModal() {
   const backdrop = document.getElementById('settings-backdrop');
   const input = document.getElementById('private-key-input');
   const checkbox = document.getElementById('telemetry-checkbox');
+  const refreshInput = document.getElementById('refresh-interval-input');
   if (backdrop) backdrop.style.display = 'flex';
   if (input) input.value = getPrivateKey();
   if (checkbox) checkbox.checked = isTelemetryEnabled();
+  if (refreshInput) refreshInput.value = getRefreshInterval();
 }
 
 function closeSettingsModal() {
@@ -460,11 +477,25 @@ function setupSettingsModal() {
       setTelemetryEnabled(checkbox.checked);
     });
   }
+
+  const refreshInput = document.getElementById('refresh-interval-input');
+  if (refreshInput) {
+    refreshInput.addEventListener('change', () => {
+      setRefreshInterval(parseInt(refreshInput.value, 10) || 5);
+    });
+  }
 }
 
 // ---------------------------------------------------------------------------
 // Boot
 // ---------------------------------------------------------------------------
+
+let fetchIntervalId = null;
+
+function restartFetchInterval() {
+  if (fetchIntervalId) clearInterval(fetchIntervalId);
+  fetchIntervalId = setInterval(fetchUserData, getRefreshInterval() * 60 * 1000);
+}
 
 document.addEventListener('DOMContentLoaded', async () => {
   initializeDragging();
@@ -473,5 +504,5 @@ document.addEventListener('DOMContentLoaded', async () => {
   window.parent.postMessage({ type: 'getNamedData', keys: WATCHED_KEYS }, '*');
 
   setTimeout(async () => await fetchUserData(), 3000);
-  setInterval(fetchUserData, 5 * 60 * 1000);
+  restartFetchInterval();
 });

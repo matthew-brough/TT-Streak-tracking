@@ -313,7 +313,8 @@ body {
     pointer-events: auto;
 }
 
-#private-key-input {
+#private-key-input,
+#refresh-interval-input {
     flex: 1;
     padding: 5px 8px;
     border: 1px solid var(--clr-border);
