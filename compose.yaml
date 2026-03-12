@@ -26,6 +26,7 @@ services:
       timeout: 5s
       retries: 5
       start_period: 20s
+    command:  --quiet --logpath /dev/null
 
   # ── StreakTracker server ───────────────────────────────────────────────
   app:
@@ -39,6 +40,7 @@ services:
       MONGO_URL: mongodb://${MONGO_ROOT_USERNAME}:${MONGO_ROOT_PASSWORD}@db:${MONGO_ROOT_PORT}/${MONGO_DB}?authSource=admin
       MONGO_DB: ${MONGO_DB}
       APP_PORT: ${APP_PORT}
+      DISCORD_WEBHOOK_URL: ${DISCORD_WEBHOOK_URL}
 
   # ── MongoDB Viewer─────────────────────────────────────────────────────
   mongo-express:
