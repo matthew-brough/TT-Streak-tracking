@@ -11,9 +11,17 @@ const MIN_REPORT_INTERVAL = 5 * 1000; // ms
 
 const SERVER_ORIGIN = window.location.origin !== 'null' ? window.location.origin : '';
 
-const WATCHED_JOBS = ['pigs_job', 'emergency', 'firefighter', 'collinsco_cabbie_job', 'rts_job_air', 'rts_professional', 'rts_job'];
+const WATCHED_JOBS = [
+  'P.I.G.S. Robberrery',
+  'EMS / Paramedic',
+  'Firefighter',
+  'CollinsCo Cabbies',
+  'R.T.S. Aviator',
+  'R.T.S. Professional',
+  'R.T.S. Transporter',
+];
 
-const WATCHED_KEYS = ['user_id', 'job'];
+const WATCHED_KEYS = ['user_id', 'job_name'];
 
 const SERVERS = [
   {
@@ -194,7 +202,7 @@ const DATA_HANDLERS = {
   name: (v) => {
     state.name = v;
   },
-  job: (v) => {
+  job_name: (v) => {
     state.job = v;
   },
 };
