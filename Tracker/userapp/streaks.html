@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <title>Streak Tracker</title>
+        <link rel="stylesheet" href="static/streaks.css" />
+    </head>
+    <body>
+        <div id="tracker">
+            <div class="header" style="cursor: move;">
+                <span class="title">Streak Tracker</span>
+                <span id="settings-gear" class="settings-gear" title="Settings">&#9881;</span>
+                <span id="job-badge" class="badge badge-inactive">--</span>
+            </div>
+            <div id="streaks-list" class="streaks-list"></div>
+            <div id="resize-handle" class="resize-handle"></div>
+        </div>
+
+        <div id="settings-backdrop" class="settings-backdrop" style="display: none;">
+            <div class="settings-modal">
+                <div class="settings-header">
+                    <span>Settings</span>
+                    <button id="settings-close" class="settings-close">&times;</button>
+                </div>
+                <div class="settings-section">
+                    <label class="settings-label">Private Key</label>
+                    <div class="settings-row">
+                        <input type="password" id="private-key-input" placeholder="Enter your private key..." autocomplete="off" />
+                        <button id="save-private-key">Save</button>
+                    </div>
+                    <span id="private-key-status"></span>
+                </div>
+                <div class="settings-section">
+                    <label class="settings-label">Telemetry</label>
+                    <label class="settings-checkbox">
+                        <input type="checkbox" id="telemetry-checkbox" />
+                        <span>Report streaks to server</span>
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <script src="static/streaks.js"></script>
+    </body>
+</html>

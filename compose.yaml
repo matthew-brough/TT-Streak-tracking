@@ -1,0 +1,70 @@
+services:
+
+  # ── MongoDB ────────────────────────────────────────────────────────────
+  db:
+    image: mongo:7
+    restart: unless-stopped
+    container_name: tt_mongo_db
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}
+    volumes:
+      - mongo_data:/data/db
+    # healthcheck:
+    #     test: ["CMD", "mongosh", "--quiet", "localhost/test", "--eval", "db.runCommand({ ping: 1 })"]
+    #     interval: 10s
+    #     timeout: 5s
+    #     retries: 5
+    #     start_period: 20s
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "mongosh --quiet mongodb://${MONGO_ROOT_USERNAME}:${MONGO_ROOT_PASSWORD}@localhost:27017/admin?authSource=admin --eval 'db.runCommand({ ping: 1 }).ok'"
+        ]
+      interval: 60s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  # ── StreakTracker server ───────────────────────────────────────────────
+  app:
+    build: .
+    container_name: node_app
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      MONGO_URL: mongodb://${MONGO_ROOT_USERNAME}:${MONGO_ROOT_PASSWORD}@db:${MONGO_ROOT_PORT}/${MONGO_DB}?authSource=admin
+      MONGO_DB: ${MONGO_DB}
+      APP_PORT: ${APP_PORT}
+
+  # ── MongoDB Viewer─────────────────────────────────────────────────────
+  mongo-express:
+    image: mongo-express
+    container_name: mongo_express
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8081:8081"
+    environment:
+      ME_CONFIG_MONGODB_URL: mongodb://${MONGO_ROOT_USERNAME}:${MONGO_ROOT_PASSWORD}@db:${MONGO_ROOT_PORT}/?authSource=admin
+      ME_CONFIG_BASICAUTH_USERNAME: ${WEB_USERNAME}
+      ME_CONFIG_BASICAUTH_PASSWORD: ${WEB_PASSWORD}
+
+  # ── Cloudflare Tunnel ──────────────────────────────────────────────────
+  # Named tunnel → set CLOUDFLARE_TUNNEL_TOKEN in .env
+  #   The token is obtained from: Cloudflare Zero Trust → Networks → Tunnels.
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    command: tunnel run --token ${CLOUDFLARE_TUNNEL_TOKEN}
+    depends_on:
+      - app
+
+volumes:
+  mongo_data:
+  
