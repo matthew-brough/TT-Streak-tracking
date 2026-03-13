@@ -170,11 +170,7 @@ async function buildApp() {
       let webhookResult;
       try {
         webhookResult = await postWebhook({
-          user_id: storedDoc.user_id,
-          streak_name: storedDoc.streak_name,
-          streak_value: storedDoc.streak_value,
-          timestamp: storedDoc.timestamp.toISOString(),
-          received_at: storedDoc.received_at.toISOString(),
+          content: `**${storedDoc.streak_name}** streak updated to **${storedDoc.streak_value}** (user ${storedDoc.user_id})`,
         });
       } catch (err) {
         request.log.error({ err }, "Webhook delivery failed");
