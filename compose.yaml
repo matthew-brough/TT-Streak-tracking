@@ -6,6 +6,10 @@ services:
       POSTGRES_USER: ${MONGO_ROOT_USERNAME}
       POSTGRES_PASSWORD: ${MONGO_ROOT_PASSWORD}
       POSTGRES_DB: postgres
+    command: >
+      postgres
+      -c cron.log_min_messages=fatal
+      -c cron.log_run=off
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
