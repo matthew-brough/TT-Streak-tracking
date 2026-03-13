@@ -1,65 +1,54 @@
 services:
-
-  # ── MongoDB ────────────────────────────────────────────────────────────
-  db:
-    image: mongo:7
-    restart: unless-stopped
-    container_name: tt_mongo_db
+  postgres:
+    image: ghcr.io/ferretdb/postgres-documentdb:17-0.107.0-ferretdb-2.7.0
+    restart: on-failure
     environment:
-      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME}
-      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}
+      POSTGRES_USER: ${MONGO_ROOT_USERNAME}
+      POSTGRES_PASSWORD: ${MONGO_ROOT_PASSWORD}
+      POSTGRES_DB: postgres
     volumes:
-      - mongo_data:/data/db
-    # healthcheck:
-    #     test: ["CMD", "mongosh", "--quiet", "localhost/test", "--eval", "db.runCommand({ ping: 1 })"]
-    #     interval: 10s
-    #     timeout: 5s
-    #     retries: 5
-    #     start_period: 20s
+      - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test:
-        [
-          "CMD-SHELL",
-          "mongosh --quiet mongodb://${MONGO_ROOT_USERNAME}:${MONGO_ROOT_PASSWORD}@localhost:27017/admin?authSource=admin --eval 'db.runCommand({ ping: 1 }).ok'"
-        ]
-      interval: 60s
+      test: ["CMD-SHELL", "pg_isready -U ${MONGO_ROOT_USERNAME} -d postgres"]
+      interval: 5s
       timeout: 5s
-      retries: 5
-      start_period: 20s
-    command:  --quiet --logpath /dev/null
+      retries: 10
+      start_period: 30s
 
-  # ── StreakTracker server ───────────────────────────────────────────────
-  app:
-    build: .
-    container_name: node_app
-    restart: unless-stopped
+  ferretdb:
+    image: ghcr.io/ferretdb/ferretdb:2.7.0
+    restart: on-failure
     depends_on:
-      db:
+      postgres:
         condition: service_healthy
     environment:
-      MONGO_URL: mongodb://${MONGO_ROOT_USERNAME}:${MONGO_ROOT_PASSWORD}@db:${MONGO_ROOT_PORT}/${MONGO_DB}?authSource=admin
+      FERRETDB_POSTGRESQL_URL: postgres://${MONGO_ROOT_USERNAME}:${MONGO_ROOT_PASSWORD}@postgres:5432/postgres
+
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      ferretdb:
+        condition: service_started
+    environment:
+      MONGO_URL: mongodb://${MONGO_ROOT_USERNAME}:${MONGO_ROOT_PASSWORD}@ferretdb:27017/${MONGO_DB}?authSource=admin
       MONGO_DB: ${MONGO_DB}
       APP_PORT: ${APP_PORT}
       DISCORD_WEBHOOK_URL: ${DISCORD_WEBHOOK_URL}
 
-  # ── MongoDB Viewer─────────────────────────────────────────────────────
   mongo-express:
     image: mongo-express
-    container_name: mongo_express
     restart: unless-stopped
     depends_on:
-      db:
-        condition: service_healthy
+      ferretdb:
+        condition: service_started
     ports:
-      - "127.0.0.1:8081:8081"
+      - "0.0.0.0:8081:8081"
     environment:
-      ME_CONFIG_MONGODB_URL: mongodb://${MONGO_ROOT_USERNAME}:${MONGO_ROOT_PASSWORD}@db:${MONGO_ROOT_PORT}/?authSource=admin
+      ME_CONFIG_MONGODB_URL: mongodb://${MONGO_ROOT_USERNAME}:${MONGO_ROOT_PASSWORD}@ferretdb:27017/
       ME_CONFIG_BASICAUTH_USERNAME: ${WEB_USERNAME}
       ME_CONFIG_BASICAUTH_PASSWORD: ${WEB_PASSWORD}
 
-  # ── Cloudflare Tunnel ──────────────────────────────────────────────────
-  # Named tunnel → set CLOUDFLARE_TUNNEL_TOKEN in .env
-  #   The token is obtained from: Cloudflare Zero Trust → Networks → Tunnels.
   cloudflared:
     image: cloudflare/cloudflared:latest
     restart: unless-stopped
@@ -68,5 +57,4 @@ services:
       - app
 
 volumes:
-  mongo_data:
-  
+  postgres_data:
