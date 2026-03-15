@@ -342,6 +342,18 @@ function maybeReportStreaks() {
 // API Response Parsing
 // ---------------------------------------------------------------------------
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+// Convert a timestamp to a day number (days since epoch)
+function toEpochDate(dayNumber) {
+  return Math.floor(dayNumber / DAY_MS);
+}
+
+// Convert a day number back to a timestamp (start of that day)
+function fromEpochDate(date) {
+  return Math.floor(date * DAY_MS);
+}
+
 async function fetchWithTimeout(resource, options = {}, timeout = 5000) {
   debug(`Fetching ${resource} with timeout ${timeout}ms`);
   return Promise.race([
@@ -385,7 +397,7 @@ async function fetchUserData() {
         const newStreaks = {};
         for (const [key, value] of Object.entries(data.data.streaks)) {
           debug(
-            `Streak ${key}: current=${value.current}, record=${value.record}`,
+            `Streak ${key}: current=${value.current}, record=${value.record}, last_updated=${value.last_updated_day}`,
           );
           if (
             (value.current && value.current !== 0) ||
@@ -400,9 +412,7 @@ async function fetchUserData() {
           state.streaks = newStreaks;
           maybeReportStreaks();
         } else {
-          debug(
-            "[StreakTracker] Streaks unchanged, not updating/reporting",
-          );
+          debug("[StreakTracker] Streaks unchanged, not updating/reporting");
         }
       } else {
         debug("No streaks data found in response");
@@ -468,6 +478,19 @@ function renderUI() {
   renderStreaks();
 }
 
+function formatExpiry(lastUpdatedDay) {
+  if (!lastUpdatedDay) return { text: "", hoursLeft: Infinity };
+  // Streak expires 48h after the next UTC midnight (day + 3 start)
+  const expiryMs = fromEpochDate(lastUpdatedDay + 3);
+  const now = Date.now();
+  const diff = expiryMs - now;
+  const totalHours = diff / (1000 * 60 * 60);
+  const hours = Math.floor(totalHours);
+  const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+  const text = hours > 0 ? `[${hours}h ${minutes}m]` : `[${minutes}m]`;
+  return { text, hoursLeft: totalHours };
+}
+
 function renderStreaks() {
   const container = document.getElementById("streaks-list");
   if (!container) return;
@@ -487,7 +510,14 @@ function renderStreaks() {
     const record = value.record || 0;
     const el = document.createElement("div");
     el.className = "streak-row";
-    el.textContent = `${label}: ${current} (${record})`;
+
+    const expiry = formatExpiry(value.last_updated_day);
+    el.textContent = `${label}: ${current} (${record}) ${expiry.text}`;
+    if (expiry.hoursLeft < 6) {
+      el.style.color = "#f87171";
+    } else if (expiry.hoursLeft < 24) {
+      el.style.color = "#facc15";
+    }
     container.appendChild(el);
   }
 }
