@@ -376,6 +376,7 @@ async function fetchUserData() {
     SERVERS[1].backup + "data/" + encodeURIComponent(state.user_id),
   ];
 
+  const FATAL_STATUSES = new Set([400, 401, 402, 403, 404]);
   let lastError = null;
   for (const url of endpoints) {
     try {
@@ -389,6 +390,12 @@ async function fetchUserData() {
         },
         5000,
       );
+      if (FATAL_STATUSES.has(res.status)) {
+        setStatus("API error " + res.status);
+        console.error("Fatal API error, bailing out:", res.status);
+        renderUI();
+        return;
+      }
       if (!res.ok) throw new Error("API error " + res.status);
       const data = await res.json();
       setStatus("OK", "ok");
