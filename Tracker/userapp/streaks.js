@@ -37,11 +37,11 @@ const WATCHED_KEYS = ["user_id", "job_name"];
 
 const SERVERS = [
   {
-    proxy: "https://tycoon-2epova.users.cfx.re/status/",
+    proxy: "https://api.tycoon.community/",
     backup: "https://tt-proxy.thisisaproxy.workers.dev/main/status/",
   },
   {
-    proxy: "https://tycoon-njyvop.users.cfx.re/status/",
+    proxy: "https://apibeta.tycoon.community/",
     backup: "https://tt-proxy.thisisaproxy.workers.dev/beta/status/",
   },
 ];
