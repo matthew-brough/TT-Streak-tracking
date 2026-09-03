@@ -31,7 +31,9 @@ const WATCHED_JOBS = [
   "R.T.S. Aviator",
   "R.T.S. Professional",
   "R.T.S. Transporter",
-  "Train Conductor"
+  "Train Conductor",
+  "Airline Pilot",
+  "Helicopter Pilot",
 ];
 
 const WATCHED_KEYS = ["user_id", "job_name"];
